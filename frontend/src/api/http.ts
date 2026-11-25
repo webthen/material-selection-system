@@ -10,9 +10,11 @@ const ADMIN_TOKEN_KEY = 'material_admin_token';
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  data?: Record<string, unknown>;
+  constructor(message: string, status: number, data?: Record<string, unknown>) {
     super(message);
     this.status = status;
+    this.data = data;
   }
 }
 
@@ -48,7 +50,11 @@ async function requestJson<T>(url: string, options: RequestInit = {}, useAdminAu
     if (useAdminAuth && response.status === 401) {
       setAdminToken(null);
     }
-    throw new ApiError(data.error || `请求失败 (${response.status})`, response.status);
+    throw new ApiError(
+      data.error || `请求失败 (${response.status})`,
+      response.status,
+      data as Record<string, unknown>
+    );
   }
 
   return data;

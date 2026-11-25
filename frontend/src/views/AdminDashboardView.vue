@@ -382,14 +382,14 @@ function askUnlockCode(c: AccessCodeItem) {
   confirmState.value = {
     open: true,
     title: '解锁重置选品状态？',
-    message: `确定将「${c.client_name}」从“已确认”退回至“选图中”吗？\n解锁后客户可再次增删物料并重新确认提交。`,
+    message: `确定将「${c.client_name}」从“已确认”退回至“选图中”吗？\n解锁后，该客户原先选中的物料将自动恢复上架以便重新调整。`,
     confirmText: '确认解锁',
     danger: false,
     loading: false,
     onConfirm: async () => {
       await unlockAdminCode(c.id);
-      showToast('已解锁为“选图中”状态', 'success');
-      await loadCodes();
+      showToast('已解锁并恢复相关物料上架', 'success');
+      await loadAllData();
     },
   };
 }

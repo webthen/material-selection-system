@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-vue-next';
 import {
+  ApiError,
   fetchClientSession,
   submitClientSelections,
   toggleClientSelection,
@@ -171,7 +172,12 @@ async function handleToggle(materialId: number) {
     }
   } catch (err) {
     selectedIds.value = prevIds;
-    showToast(err instanceof Error ? err.message : '保存失败，请检查网络', 'error');
+    if (err instanceof ApiError && err.status === 404 && activeCode.value) {
+      showToast(err.message, 'error', 3600);
+      await loadSession(activeCode.value.code, false);
+    } else {
+      showToast(err instanceof Error ? err.message : '保存失败，请检查网络', 'error');
+    }
   } finally {
     syncingCount.value = Math.max(0, syncingCount.value - 1);
   }
@@ -187,9 +193,24 @@ async function handleConfirmSubmit() {
     submitConfirmOpen.value = false;
     drawerOpen.value = false;
     previewIndex.value = null;
-    showToast('已确认提交选品清单', 'success');
+    showToast('已确认提交选品清单，所选物料已为您锁定下架', 'success');
   } catch (err) {
-    showToast(err instanceof Error ? err.message : '提交失败，请重试', 'error');
+    if (err instanceof ApiError && err.status === 409) {
+      submitConfirmOpen.value = false;
+      previewIndex.value = null;
+      const payload = err.data as
+        | { materials?: MaterialItem[]; selectedIds?: number[] }
+        | undefined;
+      if (payload?.materials && payload?.selectedIds) {
+        materials.value = payload.materials;
+        selectedIds.value = payload.selectedIds;
+      } else if (activeCode.value) {
+        await loadSession(activeCode.value.code, false);
+      }
+      showToast(err.message, 'error', 5500);
+    } else {
+      showToast(err instanceof Error ? err.message : '提交失败，请重试', 'error');
+    }
   } finally {
     submitting.value = false;
   }

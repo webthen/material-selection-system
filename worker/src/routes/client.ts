@@ -150,7 +150,13 @@ export async function handleClientRoutes(
         .bind(materialId)
         .first<MaterialRecord>();
       if (!material) {
-        return errorResponse('该物料已下架或不存在', 404);
+        await env.DB.prepare('DELETE FROM selections WHERE code_id = ? AND material_id = ?')
+          .bind(codeRow.id, materialId)
+          .run();
+        return jsonResponse(
+          { error: '该物料已被其他客户选走或已下架，列表已更新', unavailable: true },
+          404
+        );
       }
 
       const already = await env.DB.prepare(
@@ -201,7 +207,7 @@ export async function handleClientRoutes(
     });
   }
 
-  // 3. 确认提交并锁定
+  // 3. 确认提交并锁定（单件孤品先到先得：原子校验抢单冲突并自动下架已选物料）
   if (path === '/api/client/submit' && request.method === 'POST') {
     const body = await safeParseJson<{ code?: string }>(request);
     const codeStr = normalizeCode(body?.code);
@@ -218,16 +224,55 @@ export async function handleClientRoutes(
       return jsonResponse({ code: codeRow, confirmedItems });
     }
 
-    // 清理提交前已被管理员下架或删除的未锁定草稿条目
-    await env.DB.prepare(
-      `DELETE FROM selections
-       WHERE code_id = ?
-         AND (material_id IS NULL OR material_id NOT IN (SELECT id FROM materials WHERE status = 1))`
+    const buildConflictResponse = async (
+      unavailableRows: Array<{
+        material_snapshot: string;
+        live_title: string | null;
+      }>
+    ) => {
+      const conflictTitles = unavailableRows.map((r) => {
+        if (r.live_title) return r.live_title;
+        return parseSnapshot(r.material_snapshot).title;
+      });
+      await env.DB.prepare(
+        `DELETE FROM selections
+         WHERE code_id = ?
+           AND (material_id IS NULL OR material_id NOT IN (SELECT id FROM materials WHERE status = 1))`
+      )
+        .bind(codeRow.id)
+        .run();
+
+      const [latestMaterials, latestSelectedIds] = await Promise.all([
+        env.DB.prepare('SELECT * FROM materials WHERE status = 1 ORDER BY sort_order ASC, id DESC').all<MaterialRecord>(),
+        getActiveSelectedIds(env.DB, codeRow.id),
+      ]);
+
+      return jsonResponse(
+        {
+          error: `以下物料已被其他客户抢先选走或已下架，已从清单移除，请确认后重新提交：${conflictTitles.join('、')}`,
+          conflictTitles,
+          materials: latestMaterials.results ?? [],
+          selectedIds: latestSelectedIds,
+        },
+        409
+      );
+    };
+
+    // 检查购物车中是否有物料在浏览期间已被他人抢先提交下架
+    const preConflicts = await env.DB.prepare(
+      `SELECT s.material_snapshot, m.title AS live_title
+       FROM selections s
+       LEFT JOIN materials m ON s.material_id = m.id
+       WHERE s.code_id = ? AND (m.id IS NULL OR m.status != 1)`
     )
       .bind(codeRow.id)
-      .run();
+      .all<{ material_snapshot: string; live_title: string | null }>();
 
-    // 刷新最新物料信息到快照，保证确认瞬间的名称/描述/图片准确无误
+    if ((preConflicts.results ?? []).length > 0) {
+      return buildConflictResponse(preConflicts.results ?? []);
+    }
+
+    // 读取当前全部有效已选物料
     const activeSelections = await env.DB.prepare(
       `SELECT s.id AS selection_id, m.*
        FROM selections s
@@ -245,6 +290,44 @@ export async function handleClientRoutes(
       return errorResponse(`已选数量超过上限（最多可选 ${codeRow.max_select} 项）`, 400);
     }
 
+    const now = nowIso();
+
+    // 单条 SQL 原子条件更新：只有所选物料全部仍处于上架(status=1)状态时才同时下架，防止高并发部分成交
+    const claimed = await env.DB.prepare(
+      `UPDATE materials
+       SET status = 0, updated_at = ?
+       WHERE id IN (
+         SELECT material_id FROM selections WHERE code_id = ? AND material_id IS NOT NULL
+       )
+         AND status = 1
+         AND (
+           SELECT COUNT(*)
+           FROM selections s
+           INNER JOIN materials m ON s.material_id = m.id
+           WHERE s.code_id = ? AND m.status = 1
+         ) = ?
+       RETURNING id`
+    )
+      .bind(now, codeRow.id, codeRow.id, rows.length)
+      .all<{ id: number }>();
+
+    if ((claimed.results ?? []).length !== rows.length) {
+      const raceConflicts = await env.DB.prepare(
+        `SELECT s.material_snapshot, m.title AS live_title
+         FROM selections s
+         LEFT JOIN materials m ON s.material_id = m.id
+         WHERE s.code_id = ? AND (m.id IS NULL OR m.status != 1)`
+      )
+        .bind(codeRow.id)
+        .all<{ material_snapshot: string; live_title: string | null }>();
+
+      return buildConflictResponse(
+        (raceConflicts.results ?? []).length > 0
+          ? (raceConflicts.results ?? [])
+          : [{ material_snapshot: '{}', live_title: '部分物料' }]
+      );
+    }
+
     const statements = rows.map((row) => {
       const snap = JSON.stringify(buildMaterialSnapshot(row));
       return env.DB.prepare('UPDATE selections SET material_snapshot = ? WHERE id = ?').bind(
@@ -253,7 +336,6 @@ export async function handleClientRoutes(
       );
     });
 
-    const now = nowIso();
     statements.push(
       env.DB.prepare(
         'UPDATE access_codes SET status = 2, submitted_at = ?, updated_at = ? WHERE id = ?'

@@ -358,6 +358,22 @@ export async function handleAdminRoutes(
 
     if (action === 'unlock' && request.method === 'POST') {
       const now = nowIso();
+      // 解锁时将该客户之前锁定的物料自动恢复上架（前提是未被其他已确认订单占用）
+      await env.DB.prepare(
+        `UPDATE materials
+         SET status = 1, updated_at = ?
+         WHERE id IN (SELECT material_id FROM selections WHERE code_id = ? AND material_id IS NOT NULL)
+           AND status = 0
+           AND id NOT IN (
+             SELECT s2.material_id
+             FROM selections s2
+             INNER JOIN access_codes ac2 ON s2.code_id = ac2.id
+             WHERE ac2.status = 2 AND ac2.id != ? AND s2.material_id IS NOT NULL
+           )`
+      )
+        .bind(now, codeId, codeId)
+        .run();
+
       const updated = await env.DB.prepare(
         `UPDATE access_codes
          SET status = 1, submitted_at = NULL, updated_at = ?
