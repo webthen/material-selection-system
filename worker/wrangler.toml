@@ -13,7 +13,7 @@ run_worker_first = true
 [[d1_databases]]
 binding = "DB"
 database_name = "material_selection_db"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "b182f19f-b796-43bb-9e41-161290b14e52"
 migrations_dir = "migrations"
 
 # Cloudflare R2 对象存储绑定（部署前请执行 `npx wrangler r2 bucket create material-selection-images`）
