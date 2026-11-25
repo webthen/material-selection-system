@@ -1,0 +1,21 @@
+{
+  "name": "material-selection-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "db:migrate:local": "wrangler d1 migrations apply material_selection_db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply material_selection_db --remote"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "typescript": "^5.6.3",
+    "wrangler": "^3.91.0"
+  },
+  "dependencies": {
+    "material-selection-system": "file:.."
+  }
+}

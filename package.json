@@ -1,0 +1,15 @@
+{
+  "name": "material-selection-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "互换物料在线选品系统 (Vue 3 + Vite + Tailwind CSS + Cloudflare Workers + D1 + R2)",
+  "scripts": {
+    "install:all": "npm --prefix frontend install && npm --prefix worker install",
+    "dev:worker": "npm --prefix worker run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build:frontend": "npm --prefix frontend run build",
+    "db:migrate:local": "npm --prefix worker run db:migrate:local",
+    "db:migrate:remote": "npm --prefix worker run db:migrate:remote",
+    "deploy": "npm --prefix frontend run build && npm --prefix worker run deploy"
+  }
+}

@@ -1,0 +1,23 @@
+# Dependencies & build outputs
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Cloudflare Wrangler local state & secrets
+.wrangler/
+.dev.vars
+.env
+.env.*
+!.dev.vars.example
+
+# Local databases & logs
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

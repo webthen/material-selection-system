@@ -1,0 +1,29 @@
+name = "material-selection-system"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+# 静态前端资源绑定（构建后直接同域部署，无跨域问题）
+[assets]
+directory = "../frontend/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = true
+
+# Cloudflare D1 数据库绑定（部署前请执行 `npx wrangler d1 create material_selection_db` 并替换 database_id）
+[[d1_databases]]
+binding = "DB"
+database_name = "material_selection_db"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+# Cloudflare R2 对象存储绑定（部署前请执行 `npx wrangler r2 bucket create material-selection-images`）
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "material-selection-images"
+
+# 环境变量（公开仓库切勿在此填写密码或密钥！）
+# - 本地开发：复制 worker/.dev.vars.example 为 worker/.dev.vars 并填写真实值
+# - 线上部署：执行 `npx wrangler secret put ADMIN_PASSWORD` 与 `npx wrangler secret put TOKEN_SECRET`
+[vars]
+# R2 最大允许占用空间（单位 MB，默认 4096 = 4GB，严格控制在 Cloudflare 10GB 免费额度内）
+MAX_STORAGE_MB = "4096"
