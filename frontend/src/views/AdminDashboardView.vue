@@ -42,6 +42,7 @@ import {
 } from '../api/http';
 import BatchUploadModal from '../components/BatchUploadModal.vue';
 import ConfirmModal from '../components/ConfirmModal.vue';
+import TechSupportFooter from '../components/TechSupportFooter.vue';
 import type {
   AccessCodeItem,
   MaterialItem,
@@ -510,7 +511,7 @@ onMounted(async () => {
     <!-- 管理员登录页 -->
     <div
       v-else-if="!isAuthenticated"
-      class="flex min-h-screen items-center justify-center px-4 py-10"
+      class="flex min-h-screen flex-col items-center justify-center px-4 py-10"
     >
       <div class="w-full max-w-sm rounded-3xl bg-white p-6 shadow-xl shadow-slate-200/70 ring-1 ring-slate-100">
         <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-white">
@@ -549,6 +550,7 @@ onMounted(async () => {
           </button>
         </form>
       </div>
+      <TechSupportFooter class="mt-4" />
     </div>
 
     <!-- 管理后台主界面 -->
@@ -960,6 +962,8 @@ onMounted(async () => {
             </article>
           </div>
         </section>
+
+        <TechSupportFooter class="mt-6" />
       </main>
 
       <!-- 批量上传弹窗 -->

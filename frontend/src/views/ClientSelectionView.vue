@@ -18,6 +18,7 @@ import {
 import ConfirmModal from '../components/ConfirmModal.vue';
 import ImagePreviewModal, { type PreviewItem } from '../components/ImagePreviewModal.vue';
 import SelectedDrawer from '../components/SelectedDrawer.vue';
+import TechSupportFooter from '../components/TechSupportFooter.vue';
 import type { AccessCodeItem, MaterialItem, SelectionDetailItem } from '../types';
 import { formatDateTime } from '../utils/format';
 import { showToast } from '../utils/toast';
@@ -264,6 +265,7 @@ onMounted(() => {
           </button>
         </form>
       </div>
+      <TechSupportFooter class="mt-4" />
     </div>
 
     <!-- 已验证进入选品页 -->
@@ -475,6 +477,8 @@ onMounted(() => {
             </article>
           </div>
         </template>
+
+        <TechSupportFooter class="mt-4" />
       </main>
 
       <!-- 底部悬浮栏（未锁定状态） -->
